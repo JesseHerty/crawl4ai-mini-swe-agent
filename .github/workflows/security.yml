@@ -1,0 +1,63 @@
+name: Security
+
+# Runs the offline Docker-server security suite: behavioral tests for the
+# secure-by-default posture (R1-R7). No network, browser, Redis or Docker needed
+# - it boots the app via TestClient and monkeypatches DNS, so it is fast
+# (~seconds) and deterministic.
+
+on:
+  push:
+    branches: [main, develop, "security/**"]
+    paths:
+      - "deploy/docker/**"
+      - "crawl4ai/async_configs.py"
+      - ".github/workflows/security.yml"
+  pull_request:
+    paths:
+      - "deploy/docker/**"
+      - "crawl4ai/async_configs.py"
+      - ".github/workflows/security.yml"
+
+
+jobs:
+  security-offline:
+    name: Offline security tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install project and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          python -m pip install -r deploy/docker/requirements.txt pytest pytest-asyncio
+
+      - name: Run Docker server security test suite
+        run: python -m pytest deploy/docker/tests/test_security_*.py -q
+
+  posture-gate:
+    name: Default security posture gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install project and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          python -m pip install -r deploy/docker/requirements.txt pytest pytest-asyncio
+
+      - name: Run default security posture acceptance tests
+        run: python -m pytest deploy/docker/tests/test_security_default_posture.py -q
